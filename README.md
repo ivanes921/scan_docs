@@ -1,3 +1,4 @@
+
 Веб-приложение, позволяющее имитировать сканирование PDF-документа, добавлять графическую подпись и выбирать итоговую цветовую схему.
 
 ## Возможности
@@ -25,3 +26,4 @@ uvicorn app.main:app --reload
 - [PyMuPDF](https://pymupdf.readthedocs.io/) — модификация и отрисовка страниц PDF.
 - [Pillow](https://python-pillow.org/) и [NumPy](https://numpy.org/) — пост-обработка изображения (эффект скана, шум, виньетка).
 - [pdf.js](https://mozilla.github.io/pdf.js/) и [interact.js](https://interactjs.io/) — предпросмотр PDF и интерактивное размещение подписи в браузере.
+
