@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Эмулятор сканера документов</title>
+    <style>
+:root {
+  color-scheme: light;
+  font-family: "Inter", "Segoe UI", sans-serif;
+  --color-bg: #f5f5f5;
+  --color-surface: #ffffff;
+  --color-text: #1f2933;
+  --color-muted: #52606d;
+  --color-primary: #2563eb;
+  --color-primary-dark: #1d4ed8;
+  --color-border: #d0d7de;
+  --color-success: #15803d;
+  --shadow-elevated: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+}
+
+.app__header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.app__header h1 {
+  margin: 0 0 8px;
+  font-size: 2rem;
+}
+
+.app__subtitle {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+main {
+  display: grid;
+  gap: 24px;
+}
+
+.panel {
+  background: var(--color-surface);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--shadow-elevated);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form__row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form__label {
+  font-weight: 600;
+}
+
+.form__fieldset {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.form__hint {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.95rem;
+}
+
+.form__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.form__status {
+  min-height: 24px;
+  margin: 0;
+  font-weight: 600;
+  color: var(--color-success);
+}
+
+.button {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.button:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.button--primary {
+  background: linear-gradient(120deg, var(--color-primary), #3b82f6);
+  color: white;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.25);
+}
+
+.button--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.3);
+}
+
+.button--secondary {
+  background: #e5edff;
+  color: var(--color-primary-dark);
+}
+
+.button--secondary:hover {
+  background: #dbe7ff;
+}
+
+.button--ghost {
+  background: transparent;
+  color: var(--color-muted);
+}
+
+.preview {
+  background: var(--color-surface);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--shadow-elevated);
+}
+
+.preview h2 {
+  margin-top: 0;
+}
+
+.pages {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 24px;
+}
+
+.page-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.canvas-wrapper {
+  position: relative;
+  background: #fdfdfb;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05), 0 10px 25px rgba(15, 23, 42, 0.08);
+}
+
+.page-canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.signature-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.signature-layer .signature-instance {
+  position: absolute;
+  pointer-events: auto;
+  border: 2px dashed rgba(37, 99, 235, 0.8);
+  border-radius: 4px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  box-shadow: 0 4px 18px rgba(37, 99, 235, 0.25);
+}
+
+.page-controls {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .pages {
+    grid-template-columns: 1fr;
+  }
+
+  .canvas-wrapper {
+    width: 100% !important;
+    height: auto !important;
+  }
+}
+    </style>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
+      integrity="sha512-m5NH2s0DPB1Hf/KYT0qBH1QS7hNHIsdZ9lS1FkJBYlsvIvE+4Wg4TI5rNpZxbYP3QBr7PfaMXW+AD4nsvZ4fdA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"
+      integrity="sha256-r6XW4oPPOf58jNX3bPEh3rfH7R9loM7slBMJ9ZR2w5E="
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+      integrity="sha512-THni8XK1yc5U5UwSeau7Sj7Z8mKMjJQoSE9oUdNvBoUmi3z5a1NVuMcZV8K4D4ew3Efr6UT0K07lfUc0G0xAIg=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+  </head>
+  <body>
+    <div class="app">
+      <header class="app__header">
+        <h1>Эффект сканера для документов</h1>
+        <p class="app__subtitle">
+          Загрузите PDF документ и при необходимости добавьте подпись, затем оформите результат в стиле скана.
+        </p>
+      </header>
+      <main>
+        <section class="panel">
+          <form id="uploadForm" class="form" autocomplete="off">
+            <div class="form__row">
+              <label class="form__label" for="pdfInput">PDF документ</label>
+              <input type="file" id="pdfInput" name="pdf_file" accept="application/pdf" required />
+            </div>
+            <div class="form__row">
+              <label class="form__label" for="signatureInput">Подпись (PNG или JPG, опционально)</label>
+              <input type="file" id="signatureInput" name="signature_file" accept="image/png,image/jpeg" />
+            </div>
+            <fieldset class="form__fieldset">
+              <legend>Цветовая схема</legend>
+              <label><input type="radio" name="filter_type" value="color" checked /> Цветной</label>
+              <label><input type="radio" name="filter_type" value="gray" /> Оттенки серого</label>
+              <label><input type="radio" name="filter_type" value="bw" /> Чёрно-белый</label>
+            </fieldset>
+            <p class="form__hint" id="signatureHint">
+              Чтобы разместить подпись, загрузите изображение подписи. После этого на каждой странице появится кнопка «Добавить подпись».
+            </p>
+            <div class="form__actions">
+              <button type="submit" class="button button--primary">Сформировать скан</button>
+            </div>
+            <p class="form__status" id="formStatus"></p>
+          </form>
+        </section>
+        <section class="preview" id="previewSection">
+          <h2>Предпросмотр документа</h2>
+          <div id="pagesContainer" class="pages"></div>
+        </section>
+      </main>
+    </div>
+    <script>
+const pdfInput = document.getElementById("pdfInput");
+const signatureInput = document.getElementById("signatureInput");
+const uploadForm = document.getElementById("uploadForm");
+const pagesContainer = document.getElementById("pagesContainer");
+const formStatus = document.getElementById("formStatus");
+const signatureHint = document.getElementById("signatureHint");
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+let pdfData = null;
+let pdfDocument = null;
+let signatureDataUrl = null;
+let signatureRatio = 1;
+
+const pageState = new Map();
+
+function clearPreview() {
+  pagesContainer.innerHTML = "";
+  pageState.clear();
+}
+
+async function renderPdf(arrayBuffer) {
+  clearPreview();
+  pdfDocument = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+  for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
+    const page = await pdfDocument.getPage(pageNumber);
+    const viewport = page.getViewport({ scale: 1.3 });
+    const canvas = document.createElement("canvas");
+    canvas.classList.add("page-canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const context = canvas.getContext("2d");
+
+    await page.render({ canvasContext: context, viewport }).promise;
+
+    const pageWrapper = document.createElement("div");
+    pageWrapper.className = "page-wrapper";
+    pageWrapper.dataset.pageIndex = String(pageNumber - 1);
+
+    const canvasWrapper = document.createElement("div");
+    canvasWrapper.className = "canvas-wrapper";
+    canvasWrapper.style.width = `${viewport.width}px`;
+    canvasWrapper.style.height = `${viewport.height}px`;
+    canvasWrapper.appendChild(canvas);
+
+    const signatureLayer = document.createElement("div");
+    signatureLayer.className = "signature-layer";
+    canvasWrapper.appendChild(signatureLayer);
+
+    const controls = document.createElement("div");
+    controls.className = "page-controls";
+    const addButton = document.createElement("button");
+    addButton.type = "button";
+    addButton.className = "button button--secondary";
+    addButton.textContent = "Добавить подпись";
+    addButton.addEventListener("click", () => {
+      if (!signatureDataUrl) {
+        formStatus.textContent = "Сначала загрузите изображение подписи.";
+        return;
+      }
+      createSignatureInstance(signatureLayer, canvasWrapper, pageNumber - 1);
+    });
+
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.className = "button button--ghost";
+    removeButton.textContent = "Удалить подпись";
+    removeButton.addEventListener("click", () => {
+      const existing = signatureLayer.querySelector(".signature-instance");
+      if (existing) {
+        signatureLayer.removeChild(existing);
+        pageState.delete(pageNumber - 1);
+      }
+    });
+
+    controls.appendChild(addButton);
+    controls.appendChild(removeButton);
+
+    pageWrapper.appendChild(canvasWrapper);
+    pageWrapper.appendChild(controls);
+    pagesContainer.appendChild(pageWrapper);
+  }
+}
+
+function createSignatureInstance(layer, canvasWrapper, pageIndex) {
+  layer.innerHTML = "";
+  const instance = document.createElement("div");
+  instance.className = "signature-instance";
+  instance.style.backgroundImage = `url(${signatureDataUrl})`;
+
+  const wrapperWidth = canvasWrapper.offsetWidth;
+  const wrapperHeight = canvasWrapper.offsetHeight;
+  const defaultWidth = wrapperWidth * 0.35;
+  const defaultHeight = defaultWidth / signatureRatio;
+
+  instance.style.width = `${defaultWidth}px`;
+  instance.style.height = `${defaultHeight}px`;
+  instance.style.left = `${(wrapperWidth - defaultWidth) / 2}px`;
+  instance.style.top = `${wrapperHeight - defaultHeight - 30}px`;
+
+  instance.dataset.pageIndex = String(pageIndex);
+
+  layer.appendChild(instance);
+  setupInteract(instance, canvasWrapper, pageIndex);
+  updatePlacement(instance, canvasWrapper, pageIndex);
+}
+
+function setupInteract(instance, canvasWrapper, pageIndex) {
+  interact(instance)
+    .draggable({
+      listeners: {
+        move(event) {
+          const target = event.target;
+          const x = (parseFloat(target.getAttribute("data-x")) || 0) + event.dx;
+          const y = (parseFloat(target.getAttribute("data-y")) || 0) + event.dy;
+
+          target.style.transform = `translate(${x}px, ${y}px)`;
+          target.setAttribute("data-x", x);
+          target.setAttribute("data-y", y);
+        },
+        end(event) {
+          const target = event.target;
+          applyTransform(target);
+          updatePlacement(target, canvasWrapper, pageIndex);
+        },
+      },
+      modifiers: [
+        interact.modifiers.restrictRect({
+          restriction: "parent",
+          endOnly: true,
+        }),
+      ],
+    })
+    .resizable({
+      edges: { left: true, right: true, bottom: true, top: true },
+      listeners: {
+        move(event) {
+          const target = event.target;
+          const { width, height } = event.rect;
+          const x = event.deltaRect.left + (parseFloat(target.style.left) || 0);
+          const y = event.deltaRect.top + (parseFloat(target.style.top) || 0);
+
+          target.style.width = `${width}px`;
+          target.style.height = `${height}px`;
+          target.style.left = `${x}px`;
+          target.style.top = `${y}px`;
+        },
+        end(event) {
+          const target = event.target;
+          target.style.transform = "translate(0, 0)";
+          target.removeAttribute("data-x");
+          target.removeAttribute("data-y");
+          updatePlacement(target, canvasWrapper, pageIndex);
+        },
+      },
+      modifiers: [
+        interact.modifiers.restrictRect({
+          restriction: "parent",
+          endOnly: true,
+        }),
+      ],
+    });
+}
+
+function applyTransform(target) {
+  const x = parseFloat(target.getAttribute("data-x")) || 0;
+  const y = parseFloat(target.getAttribute("data-y")) || 0;
+  target.style.left = `${(parseFloat(target.style.left) || 0) + x}px`;
+  target.style.top = `${(parseFloat(target.style.top) || 0) + y}px`;
+  target.style.transform = "translate(0, 0)";
+  target.removeAttribute("data-x");
+  target.removeAttribute("data-y");
+}
+
+function updatePlacement(target, canvasWrapper, pageIndex) {
+  const wrapperWidth = canvasWrapper.offsetWidth;
+  const wrapperHeight = canvasWrapper.offsetHeight;
+  const left = parseFloat(target.style.left) || 0;
+  const top = parseFloat(target.style.top) || 0;
+  const width = parseFloat(target.style.width) || 0;
+  const height = parseFloat(target.style.height) || 0;
+
+  const placement = {
+    page: pageIndex,
+    x: left / wrapperWidth,
+    y: top / wrapperHeight,
+    width: width / wrapperWidth,
+    height: height / wrapperHeight,
+  };
+
+  pageState.set(pageIndex, placement);
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+function applyScanEffect(canvas, mode) {
+  const ctx = canvas.getContext("2d");
+  const { width, height } = canvas;
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+  const brightness = 1.05;
+  const contrast = mode === "bw" ? 1.4 : 1.15;
+  const noiseLevel = mode === "bw" ? 35 : 18;
+  const threshold = 180;
+
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const maxDistance = Math.sqrt(centerX * centerX + centerY * centerY);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = (y * width + x) * 4;
+      let r = data[index];
+      let g = data[index + 1];
+      let b = data[index + 2];
+
+      const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+
+      if (mode === "gray" || mode === "bw") {
+        r = luminance;
+        g = luminance;
+        b = luminance;
+      } else {
+        r = r * 0.92 + luminance * 0.08;
+        g = g * 0.92 + luminance * 0.08;
+        b = b * 0.92 + luminance * 0.08;
+      }
+
+      if (mode === "bw") {
+        const value = luminance > threshold ? 255 : 0;
+        r = value;
+        g = value;
+        b = value;
+      }
+
+      r = (r - 128) * contrast + 128;
+      g = (g - 128) * contrast + 128;
+      b = (b - 128) * contrast + 128;
+
+      r *= brightness;
+      g *= brightness;
+      b *= brightness;
+
+      const noise = (Math.random() - 0.5) * noiseLevel;
+      r += noise;
+      g += noise;
+      b += noise;
+
+      const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+      const vignette = 1 - 0.35 * Math.pow(distance / maxDistance, 1.3);
+      const factor = Math.max(0.6, vignette);
+      r *= factor;
+      g *= factor;
+      b *= factor;
+
+      data[index] = Math.max(0, Math.min(255, r));
+      data[index + 1] = Math.max(0, Math.min(255, g));
+      data[index + 2] = Math.max(0, Math.min(255, b));
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+}
+
+async function buildResult(filterType) {
+  if (!pdfDocument) {
+    throw new Error("Загрузите PDF документ перед обработкой.");
+  }
+
+  const signatureImage = signatureDataUrl ? await loadImage(signatureDataUrl) : null;
+  let outputPdf = null;
+
+  for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
+    const pageIndex = pageNumber - 1;
+    const page = await pdfDocument.getPage(pageNumber);
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+
+    await page.render({ canvasContext: context, viewport }).promise;
+
+    const placement = pageState.get(pageIndex);
+    if (signatureImage && placement) {
+      const targetWidth = placement.width * canvas.width;
+      const targetHeight = placement.height * canvas.height;
+      const targetX = placement.x * canvas.width;
+      const targetY = placement.y * canvas.height;
+      context.drawImage(signatureImage, targetX, targetY, targetWidth, targetHeight);
+    }
+
+    applyScanEffect(canvas, filterType);
+
+    const orientation = canvas.width >= canvas.height ? "landscape" : "portrait";
+    const widthPt = (canvas.width / 96) * 72;
+    const heightPt = (canvas.height / 96) * 72;
+    const imageDataUrl = canvas.toDataURL("image/jpeg", 0.92);
+
+    if (!outputPdf) {
+      outputPdf = new window.jspdf.jsPDF({
+        orientation,
+        unit: "pt",
+        format: [widthPt, heightPt],
+      });
+    } else {
+      outputPdf.addPage([widthPt, heightPt], orientation);
+    }
+
+    outputPdf.addImage(imageDataUrl, "JPEG", 0, 0, widthPt, heightPt);
+  }
+
+  return outputPdf;
+}
+
+pdfInput.addEventListener("change", async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) {
+    clearPreview();
+    pdfData = null;
+    pdfDocument = null;
+    return;
+  }
+
+  const buffer = await file.arrayBuffer();
+  pdfData = buffer;
+  renderPdf(buffer).catch((error) => {
+    console.error(error);
+    formStatus.textContent = "Не удалось отобразить документ.";
+  });
+});
+
+signatureInput.addEventListener("change", (event) => {
+  const file = event.target.files?.[0];
+  if (!file) {
+    signatureDataUrl = null;
+    signatureHint.textContent =
+      "Чтобы разместить подпись, загрузите изображение подписи.";
+    pagesContainer
+      .querySelectorAll(".signature-layer")
+      .forEach((layer) => (layer.innerHTML = ""));
+    pageState.clear();
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (loadEvent) => {
+    signatureDataUrl = loadEvent.target?.result;
+    const probe = new Image();
+    probe.onload = () => {
+      signatureRatio = probe.width / probe.height;
+      signatureHint.textContent =
+        "Нажмите «Добавить подпись» на нужной странице и перетащите подпись в нужное место.";
+    };
+    if (typeof signatureDataUrl === "string") {
+      probe.src = signatureDataUrl;
+    }
+  };
+  reader.readAsDataURL(file);
+});
+
+uploadForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  if (!pdfData) {
+    formStatus.textContent = "Загрузите PDF документ.";
+    return;
+  }
+
+  const filterType = uploadForm.querySelector('input[name="filter_type"]:checked').value;
+  formStatus.textContent = "Обработка…";
+
+  try {
+    const resultPdf = await buildResult(filterType);
+    const blob = resultPdf.output("blob");
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "scan_result.pdf";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    formStatus.textContent = "Документ готов и скачан.";
+  } catch (error) {
+    console.error(error);
+    formStatus.textContent =
+      error instanceof Error ? error.message : "Произошла ошибка при обработке.";
+  }
+});
+    </script>
+  </body>
+</html>
