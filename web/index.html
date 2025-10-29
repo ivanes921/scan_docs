@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Эмулятор сканера документов</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
+      integrity="sha512-m5NH2s0DPB1Hf/KYT0qBH1QS7hNHIsdZ9lS1FkJBYlsvIvE+4Wg4TI5rNpZxbYP3QBr7PfaMXW+AD4nsvZ4fdA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"
+      integrity="sha256-r6XW4oPPOf58jNX3bPEh3rfH7R9loM7slBMJ9ZR2w5E="
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+      integrity="sha512-THni8XK1yc5U5UwSeau7Sj7Z8mKMjJQoSE9oUdNvBoUmi3z5a1NVuMcZV8K4D4ew3Efr6UT0K07lfUc0G0xAIg=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+  </head>
+  <body>
+    <div class="app">
+      <header class="app__header">
+        <h1>Эффект сканера для документов</h1>
+        <p class="app__subtitle">
+          Загрузите PDF документ и при необходимости добавьте подпись, затем оформите результат в стиле скана.
+        </p>
+      </header>
+      <main>
+        <section class="panel">
+          <form id="uploadForm" class="form" autocomplete="off">
+            <div class="form__row">
+              <label class="form__label" for="pdfInput">PDF документ</label>
+              <input type="file" id="pdfInput" name="pdf_file" accept="application/pdf" required />
+            </div>
+            <div class="form__row">
+              <label class="form__label" for="signatureInput">Подпись (PNG или JPG, опционально)</label>
+              <input type="file" id="signatureInput" name="signature_file" accept="image/png,image/jpeg" />
+            </div>
+            <fieldset class="form__fieldset">
+              <legend>Цветовая схема</legend>
+              <label><input type="radio" name="filter_type" value="color" checked /> Цветной</label>
+              <label><input type="radio" name="filter_type" value="gray" /> Оттенки серого</label>
+              <label><input type="radio" name="filter_type" value="bw" /> Чёрно-белый</label>
+            </fieldset>
+            <p class="form__hint" id="signatureHint">
+              Чтобы разместить подпись, загрузите изображение подписи. После этого на каждой странице появится кнопка «Добавить подпись».
+            </p>
+            <div class="form__actions">
+              <button type="submit" class="button button--primary">Сформировать скан</button>
+            </div>
+            <p class="form__status" id="formStatus"></p>
+          </form>
+        </section>
+        <section class="preview" id="previewSection">
+          <h2>Предпросмотр документа</h2>
+          <div id="pagesContainer" class="pages"></div>
+        </section>
+      </main>
+    </div>
+    <script src="./app.js"></script>
+  </body>
+</html>
